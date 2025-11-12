@@ -16,6 +16,12 @@ using namespace std;
 // 平滑变道函数
 bool Vehicle::smoothLaneChange(int laneHeight, const vector<Vehicle> &allVehicles)
 {
+    // 如果车辆已抛锚，不能变道
+    if (isBrokenDown)
+    {
+        return false;
+    }
+
     if (isChangingLane)
     {
         // 更新变道进度
@@ -46,10 +52,10 @@ bool Vehicle::smoothLaneChange(int laneHeight, const vector<Vehicle> &allVehicle
     }
 
     // 检查变道是否安全
-    //if (!isLaneChangeSafe(laneHeight, allVehicles))
-    //{
-    //    return false; // 变道不安全，取消变道
-    //}
+    if (!isLaneChangeSafe(laneHeight, allVehicles))
+    {
+        return false; // 变道不安全，取消变道
+    }
 
     // 确定目标车道
     if (lane == 0 || lane == 3)
@@ -68,14 +74,12 @@ bool Vehicle::smoothLaneChange(int laneHeight, const vector<Vehicle> &allVehicle
     // 计算变道参数
     startX = x;
     startY = y;
-    endX = x + 30; // 向前移动50像素
+    endX = x + 50; // 向前移动50像素
     endY = laneHeight * targetLane + (int)(0.5 * laneHeight);
 
     // 开始变道
     isChangingLane = true;
     changeProgress = 0.0f;
-    return false;
-
     return false;
 }
 

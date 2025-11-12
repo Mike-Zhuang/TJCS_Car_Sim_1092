@@ -31,37 +31,7 @@ struct Vehicle
 
     // 抛锚状态
     bool isBrokenDown; // 车辆是否抛锚
-    void draw() const
-    {
-        if (isBrokenDown)
-        {
-            // 抛锚车辆：灰色+红色X
-            setfillcolor(RGB(100, 100, 100));
-            setlinecolor(RGB(50, 50, 50));
-            fillroundrect(x - carlength / 2, y - carwidth / 2, x + carlength / 2, y + carwidth / 2, 8, 8);
-
-            setlinecolor(RED);
-            setlinestyle(PS_SOLID, 3);
-            line(x - carlength / 4, y - carwidth / 4, x + carlength / 4, y + carwidth / 4);
-            line(x - carlength / 4, y + carwidth / 4, x + carlength / 4, y - carwidth / 4);
-            setlinestyle(PS_SOLID, 1);
-        }
-        else
-        {
-            // 正常车辆
-            setfillcolor(color); // 设置填充颜色
-            setlinecolor(color); // 让边框也是同色
-            fillrectangle(x - carlength / 2, y - carwidth / 2, x + carlength / 2, y + carwidth / 2);
-        }
-
-        // 在车辆上方显示速度
-        wchar_t speedText[16];
-        swprintf(speedText,16, L"%d", speed);
-        setbkmode(TRANSPARENT);
-        settextcolor(WHITE);
-        settextstyle(20, 0, L"Arial");
-        outtextxy(x - 10, y - carwidth / 2 - 25, speedText);
-    }
+    void draw() const;
     // 预测并绘制轨迹
     void predictAndDrawTrajectory(int laneHeight, int middleY, int predictionSteps = 30) const;
 
@@ -82,6 +52,7 @@ struct Vehicle
     }
     // 平滑变道函数
     bool smoothLaneChange(int laneHeight, const vector<Vehicle> &allVehicles);
+
 };
 
 // 虚拟车辆类，用于轨迹预测和相交检测
