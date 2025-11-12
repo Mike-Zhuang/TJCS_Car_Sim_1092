@@ -18,5 +18,22 @@
     <ClCompile Include="Car_Sim.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="Car_Function.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Function.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Class.h">
+      <Filter>源文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Random.h">
+      <Filter>源文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Define.h">
+      <Filter>源文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
