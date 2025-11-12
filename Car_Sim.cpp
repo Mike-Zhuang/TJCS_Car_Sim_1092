@@ -11,17 +11,26 @@
 #include "Class.h"
 #include "Define.h"
 using namespace std;
+
+// 函数声明：清除指定车道的所有车辆
+void clearLane(vector<Vehicle>& vehicles, int lane) {
+    vehicles.erase(remove_if(vehicles.begin(), vehicles.end(),
+                             [lane](const Vehicle& v) {
+                                 return v.lane == lane;
+                             }),
+                   vehicles.end());
+}
 int main()
 {
 
     Bridge bridge;
     // 输入桥梁参数
-    //cout << "请输入桥长（m）: ";
-    //cin >> bridge.bridgeLength;
-    //cout << "请输入桥宽（m）: ";
-    //cin >> bridge.bridgeWidth;
-    //cout << "请输入桥宽放大率: ";
-    //cin >> bridge.widthScale;
+    // cout << "请输入桥长（m）: ";
+    // cin >> bridge.bridgeLength;
+    // cout << "请输入桥宽（m）: ";
+    // cin >> bridge.bridgeWidth;
+    // cout << "请输入桥宽放大率: ";
+    // cin >> bridge.widthScale;
     bridge.bridgeLength = 100;
     bridge.bridgeWidth = 50;
     bridge.widthScale = 1;
@@ -61,11 +70,40 @@ int main()
         {
             drawDashedLine(0, (i + 1) * laneHeight, windowWidth, (i + 1) * laneHeight);
         }
-        // 绘制箭头
+        // 绘制箭头和可视化按钮
         for (int i = 0; i < laneCount; ++i)
         {
+            // 绘制按钮背景
+            int buttonX = 5;
+            int buttonY = laneHeight * i + (int)(0.5 * laneHeight) - (int)(laneHeight / 4);
+            int buttonWidth = 40;
+            int buttonHeight = (int)(laneHeight / 2);
+            
+            // 设置按钮颜色
+            setfillcolor(RGB(70, 70, 70)); // 深灰色背景
+            setlinecolor(RGB(200, 200, 200)); // 浅灰色边框
+            fillrectangle(buttonX, buttonY, buttonX + buttonWidth, buttonY + buttonHeight);
+            
+            // 绘制箭头
             settextstyle((int)(laneHeight / 2), 0, L"Arial");
-            outtextxy(5, laneHeight * i + (int)(0.5 * laneHeight) - (int)(laneHeight / 4), i < laneCount / 2 ? L"→" : L"←");
+            settextcolor(WHITE);
+            outtextxy(buttonX + 10, buttonY, i < laneCount / 2 ? L"→" : L"←");
+        }
+        
+        // 检查鼠标点击
+        if (MouseHit()) {
+            MOUSEMSG msg = GetMouseMsg();
+            if (msg.uMsg == WM_LBUTTONDOWN) {
+                // 检查点击是否在按钮区域
+                if (msg.x < 45) {
+                    // 计算点击所在的车道
+                    int clickedLane = msg.y / laneHeight;
+                    if (clickedLane >= 0 && clickedLane < laneCount) {
+                        // 清除该车道上的所有车辆
+                        clearLane(vehicles, clickedLane);
+                    }
+                }
+            }
         }
 
         // 生成新车
@@ -89,6 +127,7 @@ int main()
                 false,
                 RGB(rand() % 256, rand() % 256, rand() % 256),
                 false,                                         // isChangingLane
+                false,
                 0,                                             // targetLane
                 0.0f,                                          // changeProgress
                 0,                                             // startX
@@ -108,12 +147,21 @@ int main()
         {
             // 保存原始颜色（如果还没有被标记为警告）
             COLORREF originalColor = v.color;
-
+            if (v.speed==0) {
+                v.handleDangerousSituation();
+            }
             // 使用前向运动函数
             v.moveForward(middleY);
+            v.checkFrontVehicleDistance(vehicles, SAFE_DISTANCE); // 检查与前车距离
 
-            // 检查与前车距离
-            v.checkFrontVehicleDistance(vehicles, SAFE_DISTANCE);
+            if (v.isGoing2change)
+            {
+                if (v.smoothLaneChange(laneHeight, vehicles))
+                {
+                    v.haschanged = true;
+                }
+            }
+           
 
             // 如果处于警告状态，检查是否需要恢复
             if (v.isTooClose)

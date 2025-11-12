@@ -32,6 +32,7 @@ bool Vehicle::smoothLaneChange(int laneHeight, const vector<Vehicle> &allVehicle
             // 变道完成
             changeProgress = 1.0f;
             isChangingLane = false;
+            isGoing2change = false;
             lane = targetLane;
             return true;
         }
@@ -74,7 +75,7 @@ bool Vehicle::smoothLaneChange(int laneHeight, const vector<Vehicle> &allVehicle
     // 计算变道参数
     startX = x;
     startY = y;
-    endX = x + 50; // 向前移动50像素
+    endX = x + 25; // 向前移动50像素
     endY = laneHeight * targetLane + (int)(0.5 * laneHeight);
 
     // 开始变道
@@ -260,39 +261,39 @@ void Vehicle::checkFrontVehicleDistance(vector<Vehicle> &allVehicles, int safeDi
         if (distance <= safeDistance)
         {
             showFlashingFrame();
-
             // 计算相对速度
             int relativeSpeed = abs(speed - other.speed);
             if (relativeSpeed != 0)
             {
                 cout << "Relative Speed: " << relativeSpeed << endl;
             }
-            // 如果车辆正在变道，则不处理
-            if (isChangingLane)
-                continue;
-
             // 根据相对速度采取不同措施
             if (relativeSpeed <= WAIT)
             {
                 // 如果相对速度小于等于WAIT，将后车速度设为前车速度
+                if (other.isBrokenDown) {
+                    isGoing2change = true;
+                    if (other.speed != 0)
+                    {
+                        speed = speed / 2;
+                    }
+                }
                 speed = other.speed;
                 // 显示橘色线框
             }
             else if (relativeSpeed > WAIT && relativeSpeed <= CRASH)
             {
-                // 如果相对速度大于WAIT小于CRASH，尝试变道
-                bool laneChanged = smoothLaneChange(50, allVehicles);
-                if (!laneChanged)
+                isGoing2change = true;
+                if(other.speed!=0)
                 {
-                    // 如果无法变道，降低速度
-                    speed = other.speed;
+                    speed = speed/2;
                 }
             }
             else
             {
                 // 如果相对速度大于CRASH，调用危险处理函数
-                handleDangerousSituation(*this);
-                handleDangerousSituation(other);
+                handleDangerousSituation();
+                other.handleDangerousSituation();
             }
             return; // 找到最近的前车后即可返回
         }
@@ -321,10 +322,10 @@ void Vehicle::showFlashingFrame()
 }
 
 // 处理危险情况
-void Vehicle::handleDangerousSituation(Vehicle &self)
+void Vehicle::handleDangerousSituation()
 {
     // 设置车辆为抛锚状态
-    self.isBrokenDown = true;
+    isBrokenDown = true;
     // 将车辆速度设为0
-    self.speed = 0;
+    speed = 0;
 }

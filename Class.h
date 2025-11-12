@@ -18,6 +18,7 @@ struct Vehicle
 
     // 新增成员变量用于变道
     bool isChangingLane;  // 是否正在变道
+    bool isGoing2change;
     int targetLane;       // 目标车道
     float changeProgress; // 变道进度 (0.0-1.0)
     int startX;           // 变道起始X坐标
@@ -44,7 +45,7 @@ struct Vehicle
     // 显示闪烁的橘色线框
     void showFlashingFrame();
     // 处理危险情况
-    void handleDangerousSituation(Vehicle &self);
+    void handleDangerousSituation();
     // 前向运动函数
     void moveForward(int middleY)
     {
