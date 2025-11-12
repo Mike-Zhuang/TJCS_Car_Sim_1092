@@ -31,10 +31,6 @@ int main()
     srand(unsigned int(time(0)));
     double time = 0;
 
-    // 车辆长宽的分布，随机数取值
-    normal_distribution<> normalwidth(3, 0.1);  // 车的宽度  这里用了正态分布
-    normal_distribution<> normallength(6, 0.1); // 车辆长度  这里用了正态分布
-
     while (!_kbhit())
     {
         cleardevice();
@@ -74,11 +70,6 @@ int main()
             int carwidth = RandomGenerator{normalwidth}() * scale * bridge.widthScale;
             int carlength = RandomGenerator{normallength}() * scale;
 
-            // 车辆变道位置  //这里将一个车是否变道，放在了车辆上桥前就决定了
-            // 此处大家可以优化
-            normal_distribution<> normaltime(windowWidth / 2, 0.1); // 随机了变道位置概率分布
-            int changeposition = RandomGenerator{normaltime}();     // 随机了变道位置
-
             vehicles.push_back(Vehicle{
                 // 桥梁上所有车子存放在vehicles里面，
                 // 添加行车
@@ -88,72 +79,62 @@ int main()
                 lane < 3 ? 0 : windowWidth,
                 laneHeight * lane + (int)(0.5 * laneHeight),
                 (int)((rand() % 3 + 1) * scale),
-                changeposition,
                 false,
                 RGB(rand() % 256, rand() % 256, rand() % 256),
-                false, // isChangingLane
-                0,     // targetLane
-                0.0f,  // changeProgress
-                0,     // startX
-                0,     // startY
-                0,     // endX
-                0,     // endY
-                false,  // isTooClose
+                false,                                        // isChangingLane
+                0,                                            // targetLane
+                0.0f,                                         // changeProgress
+                0,                                            // startX
+                0,                                            // startY
+                0,                                            // endX
+                0,                                            // endY
+                false,                                        // isTooClose
                 RGB(rand() % 256, rand() % 256, rand() % 256) // originalColor
             });
         }
 
         // 更新车辆的位置
         int middleY = windowHeight / 2; // 桥面中心的位置
-        
-        // 定义安全距离和回调函数
-        const int SAFE_DISTANCE = 50; // 安全距离（像素）
-        
-        // 定义回调函数，当距离过近时调用
-        auto onTooClose = [](Vehicle& current, const Vehicle& front) {
-            // 如果之前不是警告状态，保存原始颜色并设置警告状态
-            if (!current.isTooClose) {
-                current.originalColor = current.color;
-                current.isTooClose = true;
-                current.color = RGB(255, 0, 0); // 变为红色表示警告
-            }
-            
-            // 可以在这里实现减速或其他行为
-            // 例如：current.speed = max(1, current.speed - 1);
-        };
-        
+
         for (auto &v : vehicles)
         {
             // 保存原始颜色（如果还没有被标记为警告）
             COLORREF originalColor = v.color;
-            
+
             // 使用前向运动函数
             v.moveForward(middleY);
-            
+
             // 检查与前车距离
-            v.checkFrontVehicleDistance(vehicles, SAFE_DISTANCE, onTooClose);
-            
+            v.checkFrontVehicleDistance(vehicles, SAFE_DISTANCE);
+
             // 如果处于警告状态，检查是否需要恢复
-            if (v.isTooClose) {
+            if (v.isTooClose)
+            {
                 // 检查当前是否仍然距离过近
                 bool stillTooClose = false;
-                for (const auto& other : vehicles) {
-                    if (&other == &v) continue;
-                    if (other.lane != v.lane) continue;
-                    
+                for (const auto &other : vehicles)
+                {
+                    if (&other == &v)
+                        continue;
+                    if (other.lane != v.lane)
+                        continue;
+
                     bool isMovingRight = (v.lane < 3);
                     bool isFrontVehicle = isMovingRight ? (other.x > v.x) : (other.x < v.x);
-                    
-                    if (isFrontVehicle) {
+
+                    if (isFrontVehicle)
+                    {
                         int distance = abs(other.x - v.x) - (other.carlength / 2 + v.carlength / 2);
-                        if (distance <= SAFE_DISTANCE) {
+                        if (distance <= SAFE_DISTANCE)
+                        {
                             stillTooClose = true;
                             break;
                         }
                     }
                 }
-                
-                if (!stillTooClose) {
+
+                if (!stillTooClose)
+                {
                     // 恢复原始颜色
                     v.color = v.originalColor;
                     v.isTooClose = false;
@@ -171,7 +152,7 @@ int main()
         for (const auto &v : vehicles)
         {
             v.predictAndDrawTrajectory(laneHeight, windowHeight / 2); // 预测并绘制轨迹
-            v.draw();               // 绘制车辆
+            v.draw();                                                 // 绘制车辆
         }
 
         Sleep(20); // ms

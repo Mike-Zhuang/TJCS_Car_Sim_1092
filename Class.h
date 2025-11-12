@@ -12,7 +12,7 @@ using namespace std;
 // 定义车辆的类
 struct Vehicle
 {
-    int lane, carlength, carwidth, x, y, speed, changeposition;
+    int lane, carlength, carwidth, x, y, speed;
     bool haschanged;
     COLORREF color;
 
@@ -24,9 +24,9 @@ struct Vehicle
     int startY;           // 变道起始Y坐标
     int endX;             // 变道结束X坐标
     int endY;             // 变道结束Y坐标
-    
+
     // 距离警告相关成员
-    bool isTooClose;      // 是否距离前车过近
+    bool isTooClose;        // 是否距离前车过近
     COLORREF originalColor; // 原始颜色
     void draw() const
     {
@@ -36,15 +36,20 @@ struct Vehicle
     }
     // 绘制变道轨迹（红色虚线）
     void drawLaneChangePath() const;
-    
+
     // 预测并绘制轨迹
     void predictAndDrawTrajectory(int laneHeight, int middleY, int predictionSteps = 30) const;
-    
+
     // 检查变道是否安全
-    bool isLaneChangeSafe(int laneHeight, const vector<Vehicle>& allVehicles) const;
-    
+    bool isLaneChangeSafe(int laneHeight, const vector<Vehicle> &allVehicles) const;
+
     // 检查与前车距离
-    void checkFrontVehicleDistance(const vector<Vehicle>& allVehicles, int safeDistance, void (*callback)(Vehicle&, const Vehicle&));
+    void checkFrontVehicleDistance(const vector<Vehicle> &allVehicles, int safeDistance);
+    
+    // 显示闪烁的橘色线框
+    void showFlashingFrame(int flashCount = 20);
+    // 处理危险情况
+    void handleDangerousSituation();
     // 前向运动函数
     void moveForward(int middleY)
     {
@@ -55,66 +60,74 @@ struct Vehicle
 };
 
 // 虚拟车辆类，用于轨迹预测和相交检测
-struct VirtualVehicle {
+struct VirtualVehicle
+{
     int x, y;
     int carlength, carwidth;
     vector<pair<int, int>> trajectory; // 轨迹点集合
-    
-    VirtualVehicle(int startX, int startY, int length, int width) 
+
+    VirtualVehicle(int startX, int startY, int length, int width)
         : x(startX), y(startY), carlength(length), carwidth(width) {}
-    
+
     // 添加轨迹点
-    void addTrajectoryPoint(int pointX, int pointY) {
+    void addTrajectoryPoint(int pointX, int pointY)
+    {
         trajectory.push_back(make_pair(pointX, pointY));
     }
-    
+
     // 绘制轨迹（红色虚线）
-    void drawTrajectory() const {
-        if (trajectory.size() < 2) return;
-        
+    void drawTrajectory() const
+    {
+        if (trajectory.size() < 2)
+            return;
+
         setlinecolor(RED);
         setlinestyle(PS_DASH, 1);
-        
-        for (size_t i = 1; i < trajectory.size(); ++i) {
-            line(trajectory[i-1].first, trajectory[i-1].second, 
+
+        for (size_t i = 1; i < trajectory.size(); ++i)
+        {
+            line(trajectory[i - 1].first, trajectory[i - 1].second,
                  trajectory[i].first, trajectory[i].second);
         }
-        
+
         setlinestyle(PS_SOLID, 1);
     }
-    
+
     // 检查与另一车辆的轨迹是否相交
-    bool isTrajectoryIntersecting(const VirtualVehicle& other, int futureSteps) const {
+    bool isTrajectoryIntersecting(const VirtualVehicle &other, int futureSteps) const
+    {
         // 检查当前和未来几个时间点的位置
         size_t checkSteps = min(futureSteps, min(trajectory.size(), other.trajectory.size()));
-        
-        for (size_t i = 0; i < checkSteps; ++i) {
+
+        for (size_t i = 0; i < checkSteps; ++i)
+        {
             // 获取当前时间点的位置
             int myX = i < trajectory.size() ? trajectory[i].first : x;
             int myY = i < trajectory.size() ? trajectory[i].second : y;
-            
+
             // 获取另一车辆在对应时间点的位置
             int otherX = i < other.trajectory.size() ? other.trajectory[i].first : other.x;
             int otherY = i < other.trajectory.size() ? other.trajectory[i].second : other.y;
-            
+
             // 检查两个矩形是否相交
             int myLeft = myX - carlength / 2;
             int myRight = myX + carlength / 2;
             int myTop = myY - carwidth / 2;
             int myBottom = myY + carwidth / 2;
-            
+
             int otherLeft = otherX - other.carlength / 2;
             int otherRight = otherX + other.carlength / 2;
             int otherTop = otherY - other.carwidth / 2;
             int otherBottom = otherY + other.carwidth / 2;
-            
+
             // 矩形相交检测
-            if (!(myLeft > otherRight || myRight < otherLeft || 
-                  myTop > otherBottom || myBottom < otherTop)) {
+            if (!(myLeft > otherRight || myRight < otherLeft ||
+                  myTop > otherBottom || myBottom < otherTop))
+            {
                 return true; // 轨迹相交
             }
         }
-        
+
         return false; // 轨迹不相交
     }
 };
