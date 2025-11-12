@@ -1,171 +1,184 @@
-﻿#include <graphics.h>
-#include <vector>
-#include <ctime>
-#include <conio.h> // 需要包含此头文件_kbhit()函数需要
-#include <Windows.h>
-#include <sstream>
-#include <string>
-#include <iostream>
-
-#include "Random.h"
 #include "Class.h"
-#include "Define.h"
+#include <algorithm>
+#include <random>
 using namespace std;
+
 int main()
 {
-
     Bridge bridge;
-    // 输入桥梁参数
-    //cout << "请输入桥长（m）: ";
-    //cin >> bridge.bridgeLength;
-    //cout << "请输入桥宽（m）: ";
-    //cin >> bridge.bridgeWidth;
-    //cout << "请输入桥宽放大率: ";
-    //cin >> bridge.widthScale;
-    bridge.bridgeLength = 100;
-    bridge.bridgeWidth = 50;
-    bridge.widthScale = 1;
-    // 调用桥梁绘制函数计算窗口大小
+    cout << "请输入桥长（m）: ";
+    cin >> bridge.bridgeLength;
+    cout << "请输入桥宽（m）: ";
+    cin >> bridge.bridgeWidth;
+    cout << "请输入桥宽放大率: ";
+    cin >> bridge.widthScale;
+
     int windowWidth, windowHeight;
     double scale;
     bridge.calculateWindowSize(windowWidth, windowHeight, scale);
 
     vector<Vehicle> vehicles;
     srand(unsigned int(time(0)));
-    double time = 0;
-    // 车辆长宽的分布，随机数取值
-    normal_distribution<> normalwidth(3, 0.1);  // 车的宽度  这里用了正态分布
-    normal_distribution<> normallength(6, 0.1); // 车辆长度  这里用了正态分布
-    uniform_int_distribution<int> int_dist(20, 120);
-    RandomGenerator rng(int_dist);
+    double simTime = 0;
+
+    int laneCount = 6;
+    int laneHeight = windowHeight / laneCount;
+
+    // 正态分布用于尺寸扰动（米）
+    normal_distribution<double> carLenDist(TrafficRules::CAR_LEN_MEAN, TrafficRules::CAR_LEN_STD);
+    normal_distribution<double> carWidDist(TrafficRules::CAR_WID_MEAN, TrafficRules::CAR_WID_STD);
+    normal_distribution<double> busLenDist(TrafficRules::BUS_LEN_MEAN, TrafficRules::BUS_LEN_STD);
+    normal_distribution<double> busWidDist(TrafficRules::BUS_WID_MEAN, TrafficRules::BUS_WID_STD);
+    normal_distribution<double> truckLenDist(TrafficRules::TRUCK_LEN_MEAN, TrafficRules::TRUCK_LEN_STD);
+    normal_distribution<double> truckWidDist(TrafficRules::TRUCK_WID_MEAN, TrafficRules::TRUCK_WID_STD);
+
+    // 修复点：准备一个持久的随机引擎，供所有分布复用
+    std::random_device rd;
+    std::mt19937 rng(rd());
+
     while (!_kbhit())
     {
         cleardevice();
-        // 显示桥的参数信息
+
+        // 顶部信息
         wchar_t info[256];
-        swprintf_s(info, L"桥长： %.0fm  桥宽：%.0fm  桥宽放大率： %.1f", bridge.bridgeLength, bridge.bridgeWidth, bridge.widthScale);
+        swprintf_s(info, L"桥长: %.0fm  桥宽: %.0fm  放大率: %.1f  时间: %.0fs",
+                   bridge.bridgeLength, bridge.bridgeWidth, bridge.widthScale, simTime);
         settextstyle(20, 0, L"Arial");
         outtextxy(10, 10, info);
-        // 显示时间
-        wchar_t info2[256];
-        swprintf_s(info2, L"时间： %.0fs", time);
-        settextstyle(20, 0, L"Arial");
-        outtextxy(windowWidth - 150, 10, info2);
 
-        // 绘制车道
-        setlinecolor(WHITE);                              // 设置线条为白色
-        settextcolor(WHITE);                              // 设置文字为白色
-        int laneCount = 6;                                // 车道数量
-        int laneHeight = (int)(windowHeight / laneCount); // 车道像素宽度
+        int stalledCount = (int)count_if(vehicles.begin(), vehicles.end(),
+                            [](const Vehicle& v){ return v.isStalled; });
+        swprintf_s(info, L"抛锚: %d", stalledCount);
+        outtextxy(windowWidth - 150, 10, info);
+
+        // 画车道
+        setlinecolor(WHITE);
+        settextcolor(WHITE);
         for (int i = 0; i < laneCount - 1; ++i)
-        {
             drawDashedLine(0, (i + 1) * laneHeight, windowWidth, (i + 1) * laneHeight);
-        }
-        // 绘制箭头
         for (int i = 0; i < laneCount; ++i)
         {
-            settextstyle((int)(laneHeight / 2), 0, L"Arial");
-            outtextxy(5, laneHeight * i + (int)(0.5 * laneHeight) - (int)(laneHeight / 4), i < laneCount / 2 ? L"→" : L"←");
+            settextstyle(laneHeight / 2, 0, L"Arial");
+            outtextxy(5, laneHeight * i + laneHeight / 2 - laneHeight / 4, i < 3 ? L"→" : L"←");
         }
 
-        // 生成新车
-        if (rand() % 10 == 0)
-        {                          // 判断要不要产生新的一辆车
-            int lane = rand() % 6; // 如果有车，车辆的随机位置
+        // 生成新车（概率可调）
+        if (rand() % 25 == 0)
+        {
+            // 决定车型
+            double r = (rand() % 1000) / 1000.0;
+            VehicleType type = VehicleType::Car;
+            if (r < TrafficRules::SPAWN_PROB_CAR) type = VehicleType::Car;
+            else if (r < TrafficRules::SPAWN_PROB_CAR + TrafficRules::SPAWN_PRO_BUS) type = VehicleType::Bus;
+            else type = VehicleType::Truck;
 
-            // 随机的车辆长与宽
-            int carwidth = RandomGenerator{normalwidth}() * scale * bridge.widthScale;
-            int carlength = RandomGenerator{normallength}() * scale;
+            // 尺寸（米）
+            double lenM = 4.5, widM = 1.8;
+            switch (type)
+            {
+            case VehicleType::Car:
+                lenM = max(3.6, carLenDist(rng));
+                widM = max(1.5, carWidDist(rng));
+                break;
+            case VehicleType::Bus:
+                lenM = max(8.0, busLenDist(rng));
+                widM = max(2.2, busWidDist(rng));
+                break;
+            case VehicleType::Truck:
+                lenM = max(9.0, truckLenDist(rng));
+                widM = max(2.2, truckWidDist(rng));
+                break;
+            }
+
+            // 速度（km/h）
+            auto rand01 = [](){ return (rand() % 10000) / 10000.0; };
+            double vmin = TrafficRules::CAR_MIN_KMH, vmax = TrafficRules::CAR_MAX_KMH;
+            switch (type)
+            {
+            case VehicleType::Car:   vmin = TrafficRules::CAR_MIN_KMH;   vmax = TrafficRules::CAR_MAX_KMH;   break;
+            case VehicleType::Bus:   vmin = TrafficRules::BUS_MIN_KMH;   vmax = TrafficRules::BUS_MAX_KMH;   break;
+            case VehicleType::Truck: vmin = TrafficRules::TRUCK_MIN_KMH; vmax = TrafficRules::TRUCK_MAX_KMH; break;
+            }
+            double baseKmh = vmin + rand01() * (vmax - vmin);
+            double variance = TrafficRules::SPEED_VARIANCE_MIN + rand01() * (TrafficRules::SPEED_VARIANCE_MAX - TrafficRules::SPEED_VARIANCE_MIN);
+            double kmh = baseKmh * variance;
+
+            // 违章（小概率超速至上限的1.3倍）
+            bool violation = (rand() % 100000) < (int)(TrafficRules::VIOLATION_PROB * 100000.0);
+            if (!violation) kmh = min(kmh, vmax);
+            else kmh = min(kmh * 1.15, vmax * TrafficRules::VIOLATION_OVERSPEED_FACTOR); // 适度超速
+
+            int pixelSpeed = max(1, (int)round(TrafficRules::kmhToPixelsPerFrame(kmh, scale)));
+
+            // 尺寸（像素）
+            int carlength = (int)round(lenM * scale);
+            int carwidth  = (int)round(widM * scale * bridge.widthScale);
+
+            // 起点、车道
+            int lane = rand() % 6;
+            int x0 = (lane < 3) ? 0 : windowWidth;
+            int y0 = laneHeight * lane + laneHeight / 2;
+
+            // 颜色（按车型倾向）
+            COLORREF color = RGB(rand()%256, rand()%256, rand()%256);
+            if (type == VehicleType::Bus)   color = RGB(60 + rand()%40, 120 + rand()%80, 220);
+            if (type == VehicleType::Truck) color = RGB(180, 160, 120 + rand()%100);
 
             vehicles.push_back(Vehicle{
-                // 桥梁上所有车子存放在vehicles里面，
-                // 添加行车
                 lane,
                 carlength,
                 carwidth,
-                lane < 3 ? 0 : windowWidth,
-                laneHeight * lane + (int)(0.5 * laneHeight),
-                (int)rng.generate(),
-                false,
-                RGB(rand() % 256, rand() % 256, rand() % 256),
-                false,                                         // isChangingLane
-                0,                                             // targetLane
-                0.0f,                                          // changeProgress
-                0,                                             // startX
-                0,                                             // startY
-                0,                                             // endX
-                0,                                             // endY
-                false,                                         // isTooClose
-                RGB(rand() % 256, rand() % 256, rand() % 256), // originalColor
-                false                                          // isBrokenDown
+                x0,
+                y0,
+                pixelSpeed,
+                pixelSpeed,
+                kmh,
+                type,
+                color,
+                false,          // isStalled
+                false,          // isChangingLane
+                lane,           // targetLane
+                0.0,            // laneChangeProgress
+                0,              // laneChangeStartY
+                0,              // laneChangeEndY
+                lane            // originalLane
             });
         }
 
-        // 更新车辆的位置
-        int middleY = windowHeight / 2; // 桥面中心的位置
+        // === 核心逻辑：移动、变道、碰撞 ===
 
-        for (auto &v : vehicles)
+        // 1. 碰撞检测（在移动前）
+        CollisionSystem::handleCollisions(vehicles, windowHeight);
+
+        // 2. 更新车辆状态
+        for (auto& v : vehicles)
         {
-            // 保存原始颜色（如果还没有被标记为警告）
-            COLORREF originalColor = v.color;
+            if (v.isStalled) continue;
 
-            // 使用前向运动函数
-            v.moveForward(middleY);
+            // 变道决策、行为与速度调整请保留你当前实现（略）
 
-            // 检查与前车距离
-            v.checkFrontVehicleDistance(vehicles, SAFE_DISTANCE);
-
-            // 如果处于警告状态，检查是否需要恢复
-            if (v.isTooClose)
-            {
-                // 检查当前是否仍然距离过近
-                bool stillTooClose = false;
-                for (const auto &other : vehicles)
-                {
-                    if (&other == &v)
-                        continue;
-                    if (other.lane != v.lane)
-                        continue;
-
-                    bool isMovingRight = (v.lane < 3);
-                    bool isFrontVehicle = isMovingRight ? (other.x > v.x) : (other.x < v.x);
-
-                    if (isFrontVehicle)
-                    {
-                        int distance = abs(other.x - v.x) - (other.carlength / 2 + v.carlength / 2);
-                        if (distance <= SAFE_DISTANCE)
-                        {
-                            stillTooClose = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (!stillTooClose)
-                {
-                    // 恢复原始颜色
-                    v.color = v.originalColor;
-                    v.isTooClose = false;
-                }
-            }
+            // 水平移动
+            VehicleMovement::updatePosition(v, windowHeight);
+            // 更新变道
+            VehicleMovement::updateLaneChange(v, windowHeight);
         }
+
+        // 再次碰撞检测
+        CollisionSystem::handleCollisions(vehicles, windowHeight);
+
         // 移除离开车辆
         vehicles.erase(remove_if(vehicles.begin(), vehicles.end(),
-                                 [windowWidth](const Vehicle &v)
-                                 { return v.x < 0 || v.x > windowWidth; }),
-                       vehicles.end()); // remove_if:遍历所有车辆，将不需要删除的车辆移至前方，
-        // 将需要删除的移至后方，返回一个分界点值，erase删除从分界点到末尾的值
+            [windowWidth](const Vehicle& v){ return v.x < -50 || v.x > windowWidth + 50; }),
+            vehicles.end());
 
-        // 绘制车辆
-        for (const auto &v : vehicles)
-        {
-            v.predictAndDrawTrajectory(laneHeight, windowHeight / 2); // 预测并绘制轨迹
-            v.draw();                                                 // 绘制车辆
-        }
+        // 绘制
+        for (const auto& v : vehicles) v.draw();
 
-        Sleep(60); // ms
-        time += 0.2;
+        Sleep(20);
+        simTime += 0.02;
     }
+
     closegraph();
     return 0;
 }
