@@ -16,12 +16,15 @@ int main()
 
     Bridge bridge;
     // 输入桥梁参数
-    cout << "请输入桥长（m）: ";
-    cin >> bridge.bridgeLength;
-    cout << "请输入桥宽（m）: ";
-    cin >> bridge.bridgeWidth;
-    cout << "请输入桥宽放大率: ";
-    cin >> bridge.widthScale;
+    //cout << "请输入桥长（m）: ";
+    //cin >> bridge.bridgeLength;
+    //cout << "请输入桥宽（m）: ";
+    //cin >> bridge.bridgeWidth;
+    //cout << "请输入桥宽放大率: ";
+    //cin >> bridge.widthScale;
+    bridge.bridgeLength = 100;
+    bridge.bridgeWidth = 50;
+    bridge.widthScale = 1;
     // 调用桥梁绘制函数计算窗口大小
     int windowWidth, windowHeight;
     double scale;
@@ -33,7 +36,8 @@ int main()
     // 车辆长宽的分布，随机数取值
     normal_distribution<> normalwidth(3, 0.1);  // 车的宽度  这里用了正态分布
     normal_distribution<> normallength(6, 0.1); // 车辆长度  这里用了正态分布
-
+    uniform_int_distribution<int> int_dist(20, 120);
+    RandomGenerator rng(int_dist);
     while (!_kbhit())
     {
         cleardevice();
@@ -65,7 +69,7 @@ int main()
         }
 
         // 生成新车
-        if (rand() % 20 == 0)
+        if (rand() % 10 == 0)
         {                          // 判断要不要产生新的一辆车
             int lane = rand() % 6; // 如果有车，车辆的随机位置
 
@@ -81,19 +85,19 @@ int main()
                 carwidth,
                 lane < 3 ? 0 : windowWidth,
                 laneHeight * lane + (int)(0.5 * laneHeight),
-                (int)((rand() % 3 + 1) * scale),
+                (int)rng.generate(),
                 false,
                 RGB(rand() % 256, rand() % 256, rand() % 256),
-                false,                                        // isChangingLane
-                0,                                            // targetLane
-                0.0f,                                         // changeProgress
-                0,                                            // startX
-                0,                                            // startY
-                0,                                            // endX
-                0,                                            // endY
-                false,                                        // isTooClose
+                false,                                         // isChangingLane
+                0,                                             // targetLane
+                0.0f,                                          // changeProgress
+                0,                                             // startX
+                0,                                             // startY
+                0,                                             // endX
+                0,                                             // endY
+                false,                                         // isTooClose
                 RGB(rand() % 256, rand() % 256, rand() % 256), // originalColor
-                false                                         // isBrokenDown
+                false                                          // isBrokenDown
             });
         }
 
@@ -159,7 +163,7 @@ int main()
             v.draw();                                                 // 绘制车辆
         }
 
-        Sleep(20); // ms
+        Sleep(60); // ms
         time += 0.2;
     }
     closegraph();

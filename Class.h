@@ -30,10 +30,11 @@ struct Vehicle
     COLORREF originalColor; // 原始颜色
 
     // 抛锚状态
-    bool isBrokenDown;      // 车辆是否抛锚
+    bool isBrokenDown; // 车辆是否抛锚
     void draw() const
     {
-        if (isBrokenDown) {
+        if (isBrokenDown)
+        {
             // 抛锚车辆：灰色+红色X
             setfillcolor(RGB(100, 100, 100));
             setlinecolor(RGB(50, 50, 50));
@@ -44,12 +45,22 @@ struct Vehicle
             line(x - carlength / 4, y - carwidth / 4, x + carlength / 4, y + carwidth / 4);
             line(x - carlength / 4, y + carwidth / 4, x + carlength / 4, y - carwidth / 4);
             setlinestyle(PS_SOLID, 1);
-        } else {
+        }
+        else
+        {
             // 正常车辆
             setfillcolor(color); // 设置填充颜色
             setlinecolor(color); // 让边框也是同色
             fillrectangle(x - carlength / 2, y - carwidth / 2, x + carlength / 2, y + carwidth / 2);
         }
+
+        // 在车辆上方显示速度
+        wchar_t speedText[16];
+        swprintf(speedText,16, L"%d", speed);
+        setbkmode(TRANSPARENT);
+        settextcolor(WHITE);
+        settextstyle(20, 0, L"Arial");
+        outtextxy(x - 10, y - carwidth / 2 - 25, speedText);
     }
     // 预测并绘制轨迹
     void predictAndDrawTrajectory(int laneHeight, int middleY, int predictionSteps = 30) const;

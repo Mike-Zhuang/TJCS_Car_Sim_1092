@@ -1,4 +1,4 @@
-#include <graphics.h>
+﻿#include <graphics.h>
 #include <vector>
 #include <ctime>
 #include <conio.h> // 需要包含此头文件_kbhit()函数需要
@@ -46,10 +46,10 @@ bool Vehicle::smoothLaneChange(int laneHeight, const vector<Vehicle> &allVehicle
     }
 
     // 检查变道是否安全
-    if (!isLaneChangeSafe(laneHeight, allVehicles))
-    {
-        return false; // 变道不安全，取消变道
-    }
+    //if (!isLaneChangeSafe(laneHeight, allVehicles))
+    //{
+    //    return false; // 变道不安全，取消变道
+    //}
 
     // 确定目标车道
     if (lane == 0 || lane == 3)
@@ -68,7 +68,7 @@ bool Vehicle::smoothLaneChange(int laneHeight, const vector<Vehicle> &allVehicle
     // 计算变道参数
     startX = x;
     startY = y;
-    endX = x + 50; // 向前移动50像素
+    endX = x + 30; // 向前移动50像素
     endY = laneHeight * targetLane + (int)(0.5 * laneHeight);
 
     // 开始变道
@@ -255,9 +255,14 @@ void Vehicle::checkFrontVehicleDistance(vector<Vehicle> &allVehicles, int safeDi
         // 如果距离小于等于安全距离，进行进一步处理
         if (distance <= safeDistance)
         {
+            showFlashingFrame();
+
             // 计算相对速度
             int relativeSpeed = abs(speed - other.speed);
-
+            if (relativeSpeed != 0)
+            {
+                cout << "Relative Speed: " << relativeSpeed << endl;
+            }
             // 如果车辆正在变道，则不处理
             if (isChangingLane)
                 continue;
@@ -268,7 +273,6 @@ void Vehicle::checkFrontVehicleDistance(vector<Vehicle> &allVehicles, int safeDi
                 // 如果相对速度小于等于WAIT，将后车速度设为前车速度
                 speed = other.speed;
                 // 显示橘色线框
-                showFlashingFrame();
             }
             else if (relativeSpeed > WAIT && relativeSpeed <= CRASH)
             {
@@ -279,8 +283,6 @@ void Vehicle::checkFrontVehicleDistance(vector<Vehicle> &allVehicles, int safeDi
                     // 如果无法变道，降低速度
                     speed = other.speed;
                 }
-                // 显示橘色线框
-                showFlashingFrame();
             }
             else
             {
